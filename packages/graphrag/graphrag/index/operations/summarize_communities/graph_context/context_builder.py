@@ -4,6 +4,7 @@
 """Context builders for graphs."""
 
 import logging
+from itertools import chain
 from typing import cast
 
 import pandas as pd
@@ -101,7 +102,7 @@ def _prepare_reports_at_level(
     source_edges = (
         level_edge_df
         .groupby(schemas.EDGE_SOURCE)
-        .agg({schemas.EDGE_DETAILS: "first"})
+        .agg({schemas.EDGE_DETAILS: list})
         .reset_index()
         .rename(columns={schemas.EDGE_SOURCE: schemas.TITLE})
     )
@@ -109,7 +110,7 @@ def _prepare_reports_at_level(
     target_edges = (
         level_edge_df
         .groupby(schemas.EDGE_TARGET)
-        .agg({schemas.EDGE_DETAILS: "first"})
+        .agg({schemas.EDGE_DETAILS: list})
         .reset_index()
         .rename(columns={schemas.EDGE_TARGET: schemas.TITLE})
     )
@@ -121,8 +122,8 @@ def _prepare_reports_at_level(
 
     # Combine source and target edge details into a single column
     merged_node_df.loc[:, schemas.EDGE_DETAILS] = merged_node_df.loc[
-        :, f"{schemas.EDGE_DETAILS}_x"
-    ].combine_first(merged_node_df.loc[:, f"{schemas.EDGE_DETAILS}_y"])
+        :, [f"{schemas.EDGE_DETAILS}_x", f"{schemas.EDGE_DETAILS}_y"]
+    ].apply(lambda row: list(chain.from_iterable(row.dropna())), axis=1)
 
     # Drop intermediate columns
     merged_node_df.drop(
@@ -140,7 +141,7 @@ def _prepare_reports_at_level(
         ])
         .agg({
             schemas.NODE_DETAILS: "first",
-            schemas.EDGE_DETAILS: lambda x: list(x.dropna()),
+            schemas.EDGE_DETAILS: lambda x: list(chain.from_iterable(x.dropna())),
         })
         .reset_index()
     )

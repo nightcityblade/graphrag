@@ -1,0 +1,4 @@
+{
+  "type": "patch",
+  "description": "Preserve all intra-community edges in community report context."
+}

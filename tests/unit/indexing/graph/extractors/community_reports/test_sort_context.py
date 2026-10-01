@@ -3,6 +3,11 @@
 import math
 import platform
 
+import graphrag.data_model.schemas as schemas
+import pandas as pd
+from graphrag.index.operations.summarize_communities.graph_context.context_builder import (
+    _prepare_reports_at_level,
+)
 from graphrag.index.operations.summarize_communities.graph_context.sort_context import (
     sort_context,
 )
@@ -219,3 +224,29 @@ def test_sort_context_max_tokens():
     assert ctx is not None, "Context is none"
     num = tokenizer.num_tokens(ctx)
     assert num <= 800, f"num_tokens is not less than or equal to 800: {num}"
+
+
+def test_prepare_reports_at_level_keeps_all_edges():
+    nodes = pd.DataFrame({
+        schemas.TITLE: list("ABC"),
+        schemas.SHORT_ID: range(3),
+        schemas.DESCRIPTION: ["node"] * 3,
+        schemas.NODE_DEGREE: [2] * 3,
+        schemas.COMMUNITY_ID: [0] * 3,
+        schemas.COMMUNITY_LEVEL: [0] * 3,
+    })
+    nodes[schemas.NODE_DETAILS] = nodes[  # type: ignore
+        [schemas.SHORT_ID, schemas.TITLE, schemas.DESCRIPTION, schemas.NODE_DEGREE]
+    ].to_dict(orient="records")
+    edges = pd.DataFrame({
+        schemas.EDGE_SOURCE: list("AAC"),
+        schemas.EDGE_TARGET: list("BCB"),
+        schemas.SHORT_ID: range(3),
+        schemas.DESCRIPTION: [f"edge-{i}" for i in range(3)],
+        schemas.EDGE_DEGREE: [4] * 3,
+    })
+
+    reports = _prepare_reports_at_level(nodes, edges, None, get_tokenizer(), 0)
+
+    report = reports.iloc[0][schemas.CONTEXT_STRING]
+    assert all(description in report for description in edges[schemas.DESCRIPTION])
